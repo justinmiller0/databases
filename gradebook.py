@@ -85,11 +85,11 @@ def add_course(conn: sqlite3.Connection) -> None:
     name = prompt_non_empty("Course name (ex: CS 1101): ")
     term = prompt_non_empty("Term (ex: Spring 2026): ")
 
-    # (Part A): Insert into courses using a parameterized query.
-    # conn.execute(
-    #     "INSERT INTO table_name (column1, column2) VALUES (?, ?);",
-    #     (value1, value2),
-    # )
+    #  (Part A): Insert into courses using a parameterized query.
+    conn.execute(
+         "INSERT INTO courses (name, term) VALUES (?, ?);",
+         (name, term),
+    )
 
     conn.commit()
 
@@ -99,11 +99,11 @@ def add_course(conn: sqlite3.Connection) -> None:
 def list_courses(conn: sqlite3.Connection) -> list[Course]:
     # (Part B): Query courses and print them.
     # Example query:
-    # rows = conn.execute(
-    #     "SELECT id, column1, column2 FROM table_name ORDER BY column1;"
-    # ).fetchall()
+    rows = conn.execute(
+        "SELECT id, name, term FROM courses;"
+    ).fetchall()
 
-    rows: list[sqlite3.Row] = []
+    # rows: list[sqlite3.Row] = []
 
     courses = [Course(id=row["id"], name=row["name"], term=row["term"]) for row in rows]
 
@@ -131,42 +131,70 @@ def select_course_id(conn: sqlite3.Connection) -> int | None:
 
     return course_id
 
-# TODO
 def add_grade(conn: sqlite3.Connection) -> None:
     """Add a grade row linked to a course."""
 
-    # (Part C):
-    # 1) Choose a course id
-    # 2) Prompt for item, score, max_score
-    # 3) INSERT into grades (course_id, item, score, max_score)
-    # 4) commit
+    course_id = select_course_id(conn)
+    if course_id is None:
+        return
 
-    # HINT: you can reuse and change the add_course() SQL query as a starting point for the INSERT.
+    item = prompt_non_empty("Item (ex: Midterm 1): ")
+    score = prompt_float("Score earned: ")
+    max_score = prompt_float("Max score: ")
 
-    print("TODO: implement add_grade()")
+    conn.execute(
+        """
+        INSERT INTO grades (course_id, item, score, max_score)
+        VALUES (?, ?, ?, ?);
+        """,
+        (course_id, item, score, max_score),
+    )
 
-# TODO
+    conn.commit()
+    print("Grade added.\n")
+
 def course_report(conn: sqlite3.Connection) -> None:
     """Show all grades for a course + average percent."""
 
-    # (Part D):
-    # - Prompt for course id
-    # - Query grades + course name (JOIN)
-    # - Print each grade
-    # - Compute average percent using SUM(score) / SUM(max_score)
+    course_id = select_course_id(conn)
+    if course_id is None:
+        return
 
-    # HINT: example JOIN query:
-    # rows = conn.execute(
-    #     """
-    #     SELECT var1.column1, var1.column2, var1.column3, var2.columnA, var2.columnB
-    #     FROM table1 var1
-    #     JOIN table2 var2 ON var1.course_id = var2.id
-    #     WHERE var2.id = ?;
-    #     """,
-    #     (var2_id,),
-    # ).fetchall()
+    rows = conn.execute(
+        """
+        SELECT g.item, g.score, g.max_score, c.name, c.term
+        FROM grades g
+        JOIN courses c ON g.course_id = c.id
+        WHERE c.id = ?;
+        """,
+        (course_id,),
+    ).fetchall()
 
-    print("TODO: implement course_report()")
+    if not rows:
+        print("No grades for this course.\n")
+        return
+
+    course_name = rows[0]["name"]
+    course_term = rows[0]["term"]
+
+    print(f"\nReport for {course_name} ({course_term}):")
+
+    total_score = 0
+    total_max = 0
+
+    for row in rows:
+        item = row["item"]
+        score = row["score"]
+        max_score = row["max_score"]
+
+        percent = (score / max_score) * 100
+        print(f"  {item}: {score}/{max_score} ({percent:.1f}%)")
+
+        total_score += score
+        total_max += max_score
+
+    overall_percent = (total_score / total_max) * 100
+    print(f"\nOverall: {total_score}/{total_max} ({overall_percent:.1f}%)\n")
 
 
 def print_menu() -> None:
